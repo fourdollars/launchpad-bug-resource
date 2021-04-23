@@ -68,9 +68,29 @@ else
 fi
 
 if [ "$(jq -r '.source | has("tag")' < /tmp/input.json)" = 'true' ]; then
-    tag="$(jq -r .source.tag < /tmp/input.json)"
+    case "$(jq -r '.source.tag | type' < /tmp/input.json)" in
+        ('number')
+            tag=("$(jq -r '.source.tag' < /tmp/input.json)")
+            ;;
+        ('string')
+            tag=("$(jq -r '.source.tag' < /tmp/input.json)")
+            ;;
+        ('array')
+            mapfile -t tag < <(jq -r '.source.tag|.[]' < /tmp/input.json | sort)
+            ;;
+        (*)
+            echo "Type '$(jq -r '.source.tag | type' < /tmp/input.json)' input is invalid for .source.tag"
+            exit 1
+            ;;
+    esac
 else
-    tag=''
+    tag=()
+fi
+
+if [ "$(jq -r '.source | has("combinator")' < /tmp/input.json)" = 'true' ] && [ "$(jq -r .source.combinator < /tmp/input.json)" = 'all' ]; then
+    combinator='All'
+else
+    combinator='Any'
 fi
 
 case "$0" in
@@ -86,9 +106,56 @@ esac
 
 declare -A etag=()
 declare -A title=()
+declare -a tags=()
+
+for name in "${tag[@]}"; do
+    tags+=("tags==$name")
+done
+
+if [ -n "$project" ]; then
+    tmp=$(mktemp -u /tmp/json-XXXXXX)
+
+    if [ -z "${tag[*]}" ]; then
+        oauth_consumer_key="$oauth_consumer_key" launchpad-api get "$project" ws.op==searchTasks > "$tmp"
+    else
+        oauth_consumer_key="$oauth_consumer_key" launchpad-api get "$project" ws.op==searchTasks "${tags[@]}" tags_combinator=="$combinator" > "$tmp"
+    fi
+
+    while read -r bug_link; do
+        id+=("$(basename "$bug_link")")
+    done < <(jq -r '.entries | .[] | .bug_link' < "$tmp")
+    echo -en "\rCollected ${#id[@]} IDs"
+
+    next=$(jq -r .next_collection_link < "$tmp")
+    while [ "$next" != 'null' ]; do
+        http --ignore-stdin --check-status --follow "$next" > "$tmp"
+        while read -r bug_link; do
+            id+=("$(basename "$bug_link")")
+        done < <(jq -r '.entries | .[] | .bug_link' < "$tmp")
+        echo -en "\rCollected ${#id[@]} IDs"
+        next=$(jq -r .next_collection_link < "$tmp")
+    done
+    echo ""
+fi
+
+if [ -z "${id[*]}" ]; then
+    case "$0" in
+        ('/opt/resource/check')
+            json='[{"sha256":"null"}]'
+            ;;
+        ('/opt/resource/in')
+            json='{"version":{"sha256":"null"},"metadata":[]}'
+            ;;
+    esac
+    jq -n "$json" >&3
+    exit
+fi
+
 mapfile -t bugs < <(sort -u <<<"${id[*]}")
 
-for bug in "${bugs[@]}"; do
+for idx in "${!bugs[@]}"; do
+    echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
+    bug="${bugs[$idx]}"
     oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug" > "$bug".json
     etag[$bug]=$(jq -r .http_etag < "$bug".json)
     title[$bug]=$(jq -r .title < "$bug".json | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')

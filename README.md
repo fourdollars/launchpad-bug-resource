@@ -32,13 +32,14 @@ resource_types:
 * oauth_token: **required**, run `oauth_consumer_key=what_you_like ./launchpad-api` to get it in ~/.config/launchpad/what_you_like.
 * oauth_token_secret: **required**, run `oauth_consumer_key=what_you_like ./launchpad-api` to get it in ~/.config/launchpad/what_you_like.
 * id: optional, the bug id or bug id list.
-* project: optional, the project's all bugs. ~~WIP~~
-* tag: optional, specify the tag to search for the project. ~~WIP~~
+* project: optional, Specify the project name to search bugs.
+* tag: optional, the tag or tag list. Specify the tag when it searches for the project.
+* combinator: 'any' or 'all'. Specify the tag combinator when it searches for the project. 'any' by default.
 
 ```yaml
 resources:
-- name: lp-bugs
-  icon: counter
+- name: bugs
+  icon: bug-outline
   type: resource-launchpad-bug
   check_every: 10m
   source:
@@ -46,8 +47,44 @@ resources:
     oauth_token: csjrGznX4Jq59CB8941N
     oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
     id: 1
-    project: ubuntu/+source/hello
-    tag: canonical
+```
+or
+```
+resources:
+- name: bugs
+  icon: bug-outline
+  type: resource-launchpad-bug
+  check_every: 10m
+  source:
+    oauth_consumer_key: test
+    oauth_token: csjrGznX4Jq59CB8941N
+    oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
+    project: linux
+    tag:
+      - focal
+      - apport-collected
+    combinator: all
+```
+or
+```
+resources:
+- name: bugs
+  icon: bug-outline
+  type: resource-launchpad-bug
+  check_every: 10m
+  source:
+    oauth_consumer_key: test
+    oauth_token: csjrGznX4Jq59CB8941N
+    oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
+    project: linux
+    id:
+      - 1
+      - 10
+      - 100
+    tag:
+      - focal
+      - apport-collected
+    combinator: all
 ```
 
 ### Example
