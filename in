@@ -84,18 +84,20 @@ case "$0" in
         ;;
 esac
 
-declare -A etags=()
+declare -A etag=()
+declare -A title=()
 mapfile -t bugs < <(sort -u <<<"${id[*]}")
 
 for bug in "${bugs[@]}"; do
     oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug" > "$bug".json
-    etags[$bug]=$(jq -r .http_etag < "$bug".json)
+    etag[$bug]=$(jq -r .http_etag < "$bug".json)
+    title[$bug]=$(jq -r .title < "$bug".json | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')
     if [ -d tasks ]; then
         oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
     fi
 done
 
-sha256sum="$(echo "${id[@]}" "${etags[@]}" | sha256sum | awk '{print $1}')"
+sha256sum="$(echo "${id[@]}" "${etag[@]}" | sha256sum | awk '{print $1}')"
 
 case "$0" in
     ('/opt/resource/check')
@@ -105,7 +107,7 @@ case "$0" in
         json='{"version":{"sha256":"'"$sha256sum"'"},"metadata":['
         metadata=()
         for bug in "${bugs[@]}"; do
-            metadata+=('{"name":"'"$bug"'","value":"'"${etags[$bug]//\"/\\\"}"'"}')
+            metadata+=('{"name":"'"$bug"'","value":"'"${title[$bug]}"'"}')
         done
         IFS=,
         json+="${metadata[*]}"']}'
