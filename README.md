@@ -49,7 +49,7 @@ resources:
     id: 1
 ```
 or
-```
+```yaml
 resources:
 - name: bugs
   icon: bug-outline
@@ -66,7 +66,7 @@ resources:
     combinator: all
 ```
 or
-```
+```yaml
 resources:
 - name: bugs
   icon: bug-outline
