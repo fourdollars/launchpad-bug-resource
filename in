@@ -1,0 +1,115 @@
+#!/bin/bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+clearup ()
+{
+    rm -f /tmp/input.json
+    rm -fr ~/.config/launchpad
+}
+
+trap clearup EXIT INT TERM
+
+exec 3>&1
+exec 1>&2
+jq -M -S . < /dev/stdin > /tmp/input.json
+
+if [ "$(jq -r '.source | has("oauth_consumer_key")' < /tmp/input.json)" = 'true' ]; then
+    oauth_consumer_key="$(jq -r .source.oauth_consumer_key < /tmp/input.json)"
+else
+    echo 'You need to provide the oauth_consumer_key.'
+    exit 1
+fi
+
+if [ "$(jq -r '.source | has("oauth_token")' < /tmp/input.json)" = 'true' ]; then
+    oauth_token="$(jq -r .source.oauth_token < /tmp/input.json)"
+else
+    echo 'You need to provide the oauth_token.'
+    exit 1
+fi
+
+if [ "$(jq -r '.source | has("oauth_token_secret")' < /tmp/input.json)" = 'true' ]; then
+    oauth_token_secret="$(jq -r .source.oauth_token_secret < /tmp/input.json)"
+else
+    echo 'You need to provide the oauth_token_secret.'
+    exit 1
+fi
+
+mkdir -p ~/.config/launchpad
+cat > ~/.config/launchpad/"$oauth_consumer_key" <<ENDLINE
+#!/bin/bash
+
+export oauth_token="${oauth_token}"
+export oauth_token_secret="${oauth_token_secret}"
+ENDLINE
+
+if [ "$(jq -r '.source | has("id")' < /tmp/input.json)" = 'true' ]; then
+    case "$(jq -r '.source.id | type' < /tmp/input.json)" in
+        ('number')
+            id=("$(jq -r .source.id < /tmp/input.json)")
+            ;;
+        ('array')
+            mapfile -t id < <(jq -r '.source.id | .[]' < /tmp/input.json)
+            ;;
+        (*)
+            echo "Invalid input for .source.id"
+            exit 1
+            ;;
+    esac
+else
+    id=()
+fi
+
+if [ "$(jq -r '.source | has("project")' < /tmp/input.json)" = 'true' ]; then
+    project="$(jq -r .source.project < /tmp/input.json)"
+else
+    project=''
+fi
+
+if [ "$(jq -r '.source | has("tag")' < /tmp/input.json)" = 'true' ]; then
+    tag="$(jq -r .source.tag < /tmp/input.json)"
+else
+    tag=''
+fi
+
+case "$0" in
+    ('/opt/resource/out')
+        jq -n '{}' >&3
+        exit
+        ;;
+    ('/opt/resource/in')
+        cd "$1"
+        mkdir tasks
+        ;;
+esac
+
+declare -A etags=()
+mapfile -t bugs < <(sort -u <<<"${id[*]}")
+
+for bug in "${bugs[@]}"; do
+    oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug" > "$bug".json
+    etags[$bug]=$(jq -r .http_etag < "$bug".json)
+    if [ -d tasks ]; then
+        oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
+    fi
+done
+
+sha256sum="$(echo "${id[@]}" "${etags[@]}" | sha256sum | awk '{print $1}')"
+
+case "$0" in
+    ('/opt/resource/check')
+        json='[{"sha256":"'"$sha256sum"'"}]'
+        ;;
+    ('/opt/resource/in')
+        json='{"version":{"sha256":"'"$sha256sum"'"},"metadata":['
+        metadata=()
+        for bug in "${bugs[@]}"; do
+            metadata+=('{"name":"'"$bug"'","value":"'"${etags[$bug]//\"/\\\"}"'"}')
+        done
+        IFS=,
+        json+="${metadata[*]}"']}'
+        ;;
+esac
+
+jq -n "$json" >&3
