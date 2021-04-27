@@ -34,6 +34,7 @@ resource_types:
 * id: optional, the bug id or bug id list.
 * project: optional, Specify the project name to search bugs.
 * tag: optional, the tag or tag list. Specify the tag when it searches for the project.
+* status: optional, one status of "New", "Incomplete", "Opinion", "Invalid", "Won't Fix", "Expired", "Confirmed", "Triaged", "In Progress", "Fix Committed", "Fix Released", "Unknown" or the list. Specify the status when it searches for the project.
 * combinator: 'any' or 'all'. Specify the tag combinator when it searches for the project. 'any' by default.
 
 ```yaml
