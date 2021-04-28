@@ -176,7 +176,7 @@ if [ -z "${id[*]}" ]; then
     exit
 fi
 
-mapfile -t bugs < <(sort -u <<<"${id[*]}")
+mapfile -t bugs < <(sort -u -n <<<"${id[*]}")
 
 for idx in "${!bugs[@]}"; do
     echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
