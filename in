@@ -5,11 +5,14 @@ IFS=$'\n\t'
 
 clearup ()
 {
+    rm -f "$tmp"
     rm -f /tmp/input.json
     rm -fr ~/.config/launchpad
 }
 
 trap clearup EXIT INT TERM
+
+tmp=$(mktemp -u /tmp/json-XXXXXX)
 
 exec 3>&1
 exec 1>&2
@@ -142,8 +145,6 @@ for name in "${status[@]}"; do
 done
 
 if [ -n "$project" ]; then
-    tmp=$(mktemp -u /tmp/json-XXXXXX)
-
     oauth_consumer_key="$oauth_consumer_key" launchpad-api get "$project" ws.op==searchTasks "${args[@]}" tags_combinator=="$combinator" > "$tmp"
 
     while read -r bug_link; do
@@ -206,4 +207,5 @@ case "$0" in
         ;;
 esac
 
-jq -n "$json" >&3
+echo "$json" > "$tmp"
+jq -n --slurpfile all "$tmp" '$all[0]' >&3
