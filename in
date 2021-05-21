@@ -208,4 +208,5 @@ case "$0" in
 esac
 
 echo "$json" > "$tmp"
+sed -i 's/\t/ /g' "$tmp"
 jq -n --slurpfile all "$tmp" '$all[0]' >&3
