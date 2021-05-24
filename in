@@ -113,6 +113,30 @@ else
     combinator='Any'
 fi
 
+if [ "$(jq -r '.source | has("modified_since")' < /tmp/input.json)" = 'true' ]; then
+    modified_since="$(jq -r .source.modified_since < /tmp/input.json)"
+else
+    modified_since=''
+fi
+
+if [ "$(jq -r '.version | has("date_last_updated")' < /tmp/input.json)" = 'true' ]; then
+    old_date_last_updated="$(jq -r '.version.date_last_updated' < /tmp/input.json)"
+else
+    old_date_last_updated=''
+fi
+
+if [ "$(jq -r '.version | has("modified_since")' < /tmp/input.json)" = 'true' ]; then
+    old_modified_since="$(jq -r '.version.modified_since' < /tmp/input.json)"
+else
+    old_modified_since=''
+fi
+
+if [ "$(jq -r '.version | has("sha256")' < /tmp/input.json)" = 'true' ]; then
+    sha256sum="$(jq -r '.version.sha256' < /tmp/input.json)"
+else
+    sha256sum=''
+fi
+
 case "$0" in
     ('/opt/resource/out')
         jq -n '{}' >&3
@@ -132,6 +156,16 @@ for name in "${tag[@]}"; do
     args+=("tags==$name")
 done
 
+if [ "$modified_since" = 'auto' ]; then
+    if [ "$0" = /opt/resource/check ] && [ -n "$old_date_last_updated" ]; then
+        args+=("modified_since==$old_date_last_updated")
+    elif [ "$0" = /opt/resource/in ] && [ -n "$old_modified_since" ]; then
+        args+=("modified_since==$old_modified_since")
+    fi
+elif [ -n "$modified_since" ]; then
+    args+=("modified_since==$modified_since")
+fi
+
 for name in "${status[@]}"; do
     case "$name" in
         ("New"|"Incomplete"|"Opinion"|"Invalid"|"Won't Fix"|"Expired"|"Confirmed"|"Triaged"|"In Progress"|"Fix Committed"|"Fix Released"|"Unknown")
@@ -145,6 +179,7 @@ for name in "${status[@]}"; do
 done
 
 if [ -n "$project" ]; then
+    echo launchpad-api get "$project" ws.op==searchTasks "${args[@]}" tags_combinator=="$combinator"
     oauth_consumer_key="$oauth_consumer_key" launchpad-api get "$project" ws.op==searchTasks "${args[@]}" tags_combinator=="$combinator" > "$tmp"
 
     while read -r bug_link; do
@@ -167,10 +202,18 @@ fi
 if [ -z "${id[*]}" ]; then
     case "$0" in
         ('/opt/resource/check')
-            json='[{"sha256":"null"}]'
+            if [ "$modified_since" = 'auto' ]; then
+                json='[{"sha256":"'"$sha256sum"'","date_last_updated":"'"$old_date_last_updated"'","modified_since":"'"$old_modified_since"'"}]'
+            else
+                json='[{"sha256":"'"$sha256sum"'"}]'
+            fi
             ;;
         ('/opt/resource/in')
-            json='{"version":{"sha256":"null"},"metadata":[]}'
+            if [ "$modified_since" = 'auto' ]; then
+                json='{"version":{"sha256":"'"$sha256sum"'","date_last_updated":"'"$old_date_last_updated"'","modified_since":"'"$old_modified_since"'"}}'
+            else
+                json='{"version":{"sha256":"'"$sha256sum"'"}}'
+            fi
             ;;
     esac
     jq -n "$json" >&3
@@ -179,12 +222,27 @@ fi
 
 mapfile -t bugs < <(sort -u -n <<<"${id[*]}")
 
+if [ "$modified_since" = 'auto' ]; then
+    if [ -n "$old_date_last_updated" ]; then
+        new_modified_since="$old_date_last_updated"
+    else
+        new_modified_since=''
+    fi
+fi
+
+new_date_last_updated=''
 for idx in "${!bugs[@]}"; do
     echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
     bug="${bugs[$idx]}"
     oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug" > "$bug".json
     etag[$bug]=$(jq -r .http_etag < "$bug".json)
     title[$bug]=$(jq -r .title < "$bug".json | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')
+    if [ "$modified_since" = 'auto' ]; then
+        last_updated="$(jq -r .date_last_updated < "$bug".json)"
+        if [[ "$last_updated" > "$new_date_last_updated" ]]; then
+            new_date_last_updated="$last_updated"
+        fi
+    fi
     if [ -d tasks ]; then
         oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
     fi
@@ -194,10 +252,18 @@ sha256sum="$(echo "${id[@]}" "${etag[@]}" | sha256sum | awk '{print $1}')"
 
 case "$0" in
     ('/opt/resource/check')
-        json='[{"sha256":"'"$sha256sum"'"}]'
+        if [ "$modified_since" = 'auto' ]; then
+            json='[{"sha256":"'"$sha256sum"'","date_last_updated":"'"$new_date_last_updated"'","modified_since":"'"$new_modified_since"'"}]'
+        else
+            json='[{"sha256":"'"$sha256sum"'"}]'
+        fi
         ;;
     ('/opt/resource/in')
-        json='{"version":{"sha256":"'"$sha256sum"'"},"metadata":['
+        if [ "$modified_since" = 'auto' ]; then
+            json='{"version":{"sha256":"'"$sha256sum"'","date_last_updated":"'"$new_date_last_updated"'","modified_since":"'"$old_modified_since"'"},"metadata":['
+        else
+            json='{"version":{"sha256":"'"$sha256sum"'"},"metadata":['
+        fi
         metadata=()
         for bug in "${bugs[@]}"; do
             metadata+=('{"name":"'"$bug"'","value":"'"${title[$bug]}"'"}')
