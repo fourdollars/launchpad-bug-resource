@@ -107,12 +107,6 @@ else
     tag=()
 fi
 
-if [ "$(jq -r '.source | has("combinator")' < /tmp/input.json)" = 'true' ] && [ "$(jq -r .source.combinator < /tmp/input.json)" = 'all' ]; then
-    combinator='All'
-else
-    combinator='Any'
-fi
-
 if [ "$(jq -r '.source | has("modified_since")' < /tmp/input.json)" = 'true' ]; then
     modified_since="$(jq -r .source.modified_since < /tmp/input.json)"
 else
@@ -156,6 +150,17 @@ for name in "${tag[@]}"; do
     args+=("tags==$name")
 done
 
+if [ -n "${tag[*]}" ] && [ "$(jq -r '.source | has("combinator")' < /tmp/input.json)" = 'true' ]; then
+    case "$(jq -r .source.combinator < /tmp/input.json)" in
+        (all)
+            args+=('tags_combinator==All')
+            ;;
+        (any)
+            args+=('tags_combinator==Any')
+            ;;
+    esac
+fi
+
 if [ "$modified_since" = 'auto' ]; then
     if [ "$0" = /opt/resource/check ] && [ -n "$old_date_last_updated" ]; then
         args+=("modified_since==$old_date_last_updated")
@@ -179,8 +184,8 @@ for name in "${status[@]}"; do
 done
 
 if [ -n "$project" ]; then
-    echo launchpad-api get "$project" ws.op==searchTasks "${args[@]}" tags_combinator=="$combinator"
-    oauth_consumer_key="$oauth_consumer_key" launchpad-api get "$project" ws.op==searchTasks "${args[@]}" tags_combinator=="$combinator" > "$tmp"
+    echo launchpad-api get "$project" ws.op==searchTasks "${args[@]}"
+    oauth_consumer_key="$oauth_consumer_key" launchpad-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
 
     while read -r bug_link; do
         id+=("$(basename "$bug_link")")
