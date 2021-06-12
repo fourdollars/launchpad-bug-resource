@@ -2,7 +2,7 @@ name: Docker
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * SUN'
       
   push:
     # Publish `main` as Docker `latest` image.
