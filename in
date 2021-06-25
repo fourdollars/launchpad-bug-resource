@@ -125,10 +125,10 @@ else
     old_modified_since=''
 fi
 
-if [ "$(jq -r '.version | has("sha256")' < /tmp/input.json)" = 'true' ]; then
-    sha256sum="$(jq -r '.version.sha256' < /tmp/input.json)"
+if [ "$(jq -r '.version | has("digest")' < /tmp/input.json)" = 'true' ]; then
+    digest="$(jq -r '.version.digest' < /tmp/input.json)"
 else
-    sha256sum=''
+    digest=''
 fi
 
 case "$0" in
@@ -208,16 +208,16 @@ if [ -z "${id[*]}" ]; then
     case "$0" in
         ('/opt/resource/check')
             if [ "$modified_since" = 'auto' ]; then
-                json='[{"sha256":"'"$sha256sum"'","date_last_updated":"'"$old_date_last_updated"'","modified_since":"'"$old_modified_since"'"}]'
+                json='[{"digest":"'"$digest"'","date_last_updated":"'"$old_date_last_updated"'","modified_since":"'"$old_modified_since"'"}]'
             else
-                json='[{"sha256":"'"$sha256sum"'"}]'
+                json='[{"digest":"'"$digest"'"}]'
             fi
             ;;
         ('/opt/resource/in')
             if [ "$modified_since" = 'auto' ]; then
-                json='{"version":{"sha256":"'"$sha256sum"'","date_last_updated":"'"$old_date_last_updated"'","modified_since":"'"$old_modified_since"'"}}'
+                json='{"version":{"digest":"'"$digest"'","date_last_updated":"'"$old_date_last_updated"'","modified_since":"'"$old_modified_since"'"}}'
             else
-                json='{"version":{"sha256":"'"$sha256sum"'"}}'
+                json='{"version":{"digest":"'"$digest"'"}}'
             fi
             ;;
     esac
@@ -253,21 +253,21 @@ for idx in "${!bugs[@]}"; do
     fi
 done
 
-sha256sum="$(echo "${id[@]}" "${etag[@]}" | sha256sum | awk '{print $1}')"
+digest="sha256:$(echo "${id[@]}" "${etag[@]}" | sha256sum | awk '{print $1}')"
 
 case "$0" in
     ('/opt/resource/check')
         if [ "$modified_since" = 'auto' ]; then
-            json='[{"sha256":"'"$sha256sum"'","date_last_updated":"'"$new_date_last_updated"'","modified_since":"'"$new_modified_since"'"}]'
+            json='[{"digest":"'"$digest"'","date_last_updated":"'"$new_date_last_updated"'","modified_since":"'"$new_modified_since"'"}]'
         else
-            json='[{"sha256":"'"$sha256sum"'"}]'
+            json='[{"digest":"'"$digest"'"}]'
         fi
         ;;
     ('/opt/resource/in')
         if [ "$modified_since" = 'auto' ]; then
-            json='{"version":{"sha256":"'"$sha256sum"'","date_last_updated":"'"$new_date_last_updated"'","modified_since":"'"$old_modified_since"'"},"metadata":['
+            json='{"version":{"digest":"'"$digest"'","date_last_updated":"'"$new_date_last_updated"'","modified_since":"'"$old_modified_since"'"},"metadata":['
         else
-            json='{"version":{"sha256":"'"$sha256sum"'"},"metadata":['
+            json='{"version":{"digest":"'"$digest"'"},"metadata":['
         fi
         metadata=()
         for bug in "${bugs[@]}"; do
