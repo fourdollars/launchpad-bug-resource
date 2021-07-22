@@ -13,6 +13,10 @@ resource_types:
   source:
     repository: fourdollars/launchpad-bug-resource
     tag: latest
+  defaults:
+    oauth_consumer_key: test
+    oauth_token: csjrGznX4Jq59CB8941N
+    oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
 ```
 
 or
@@ -24,6 +28,10 @@ resource_types:
   source:
     repository: ghcr.io/fourdollars/launchpad-bug-resource
     tag: latest
+  defaults:
+    oauth_consumer_key: test
+    oauth_token: csjrGznX4Jq59CB8941N
+    oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
 ```
 
 ### Resource
@@ -37,6 +45,9 @@ resource_types:
 * status: optional, one status of "New", "Incomplete", "Opinion", "Invalid", "Won't Fix", "Expired", "Confirmed", "Triaged", "In Progress", "Fix Committed", "Fix Released", "Unknown" or the list. Specify the status when it searches for the project.
 * combinator: 'any' or 'all'. Specify the tag combinator when it searches for the project. 'any' by default.
 * modified_since: optional, it is disabled by default. When it is enabled, it will only check those modified bugs since the date last updated.
+* created_before: optional, it is disabled by default. When it is enabled, it will search for bugs that were created before the given date
+* created_since: optional, it is disabled by default. When it is enabled, it will search for bugs that were created since the given date
+* auto_mode: optional, it is disabled by default. When it is enabled, it will use the date_last_updated of bugs last time as the next modified_since.
 
 ```yaml
 resources:
@@ -45,9 +56,6 @@ resources:
   type: resource-launchpad-bug
   check_every: 10m
   source:
-    oauth_consumer_key: test
-    oauth_token: csjrGznX4Jq59CB8941N
-    oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
     id: 1
 ```
 or
@@ -58,9 +66,6 @@ resources:
   type: resource-launchpad-bug
   check_every: 10m
   source:
-    oauth_consumer_key: test
-    oauth_token: csjrGznX4Jq59CB8941N
-    oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
     project: linux
     tag:
       - focal
@@ -75,9 +80,6 @@ resources:
   type: resource-launchpad-bug
   check_every: 10m
   source:
-    oauth_consumer_key: test
-    oauth_token: csjrGznX4Jq59CB8941N
-    oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
     project: linux
     id:
       - 1

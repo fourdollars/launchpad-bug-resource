@@ -107,22 +107,17 @@ else
     tag=()
 fi
 
-if [ "$(jq -r '.source | has("modified_since")' < /tmp/input.json)" = 'true' ]; then
-    modified_since="$(jq -r .source.modified_since < /tmp/input.json)"
-else
-    modified_since=''
-fi
+auto_mode="$(jq -r '.source.auto_mode // "false"' < /tmp/input.json)"
+modified_since="$(jq -r '.source.modified_since // ""' < /tmp/input.json)"
+created_since="$(jq -r '.source.created_since // ""' < /tmp/input.json)"
+created_before="$(jq -r '.source.created_before // ""' < /tmp/input.json)"
+old_date_last_updated="$(jq -r '.version.date_last_updated // ""' < /tmp/input.json)"
+old_modified_since="$(jq -r '.version.modified_since // ""' < /tmp/input.json)"
 
-if [ "$(jq -r '.version | has("date_last_updated")' < /tmp/input.json)" = 'true' ]; then
-    old_date_last_updated="$(jq -r '.version.date_last_updated' < /tmp/input.json)"
-else
-    old_date_last_updated=''
-fi
-
-if [ "$(jq -r '.version | has("modified_since")' < /tmp/input.json)" = 'true' ]; then
-    old_modified_since="$(jq -r '.version.modified_since' < /tmp/input.json)"
-else
-    old_modified_since=''
+# Backward Compatibility
+if [ -n "$modified_since" ] && [ "$modified_since" = "auto" ]; then
+    auto_mode="true"
+    modified_since=""
 fi
 
 if [ "$(jq -r '.version | has("digest")' < /tmp/input.json)" = 'true' ]; then
@@ -150,8 +145,8 @@ for name in "${tag[@]}"; do
     args+=("tags==$name")
 done
 
-if [ -n "${tag[*]}" ] && [ "$(jq -r '.source | has("combinator")' < /tmp/input.json)" = 'true' ]; then
-    case "$(jq -r .source.combinator < /tmp/input.json)" in
+if [ -n "${tag[*]}" ]; then
+    case "$(jq -r '.source.combinator // "any"' < /tmp/input.json)" in
         (all)
             args+=('tags_combinator==All')
             ;;
@@ -161,7 +156,7 @@ if [ -n "${tag[*]}" ] && [ "$(jq -r '.source | has("combinator")' < /tmp/input.j
     esac
 fi
 
-if [ "$modified_since" = 'auto' ]; then
+if [ "$auto_mode" = 'true' ]; then
     if [ "$0" = /opt/resource/check ] && [ -n "$old_date_last_updated" ]; then
         args+=("modified_since==$old_date_last_updated")
     elif [ "$0" = /opt/resource/in ] && [ -n "$old_modified_since" ]; then
@@ -169,6 +164,14 @@ if [ "$modified_since" = 'auto' ]; then
     fi
 elif [ -n "$modified_since" ]; then
     args+=("modified_since==$modified_since")
+fi
+
+if [ -n "$created_since" ]; then
+    args+=("created_since==$created_since")
+fi
+
+if [ -n "$created_before" ]; then
+    args+=("created_before==$created_before")
 fi
 
 for name in "${status[@]}"; do
@@ -207,14 +210,14 @@ fi
 if [ -z "${id[*]}" ]; then
     case "$0" in
         ('/opt/resource/check')
-            if [ "$modified_since" = 'auto' ]; then
+            if [ "$auto_mode" = 'true' ]; then
                 json='[{"digest":"'"$digest"'","date_last_updated":"'"$old_date_last_updated"'","modified_since":"'"$old_modified_since"'"}]'
             else
                 json='[{"digest":"'"$digest"'"}]'
             fi
             ;;
         ('/opt/resource/in')
-            if [ "$modified_since" = 'auto' ]; then
+            if [ "$auto_mode" = 'true' ]; then
                 json='{"version":{"digest":"'"$digest"'","date_last_updated":"'"$old_date_last_updated"'","modified_since":"'"$old_modified_since"'"}}'
             else
                 json='{"version":{"digest":"'"$digest"'"}}'
@@ -227,7 +230,7 @@ fi
 
 mapfile -t bugs < <(sort -u -n <<<"${id[*]}")
 
-if [ "$modified_since" = 'auto' ]; then
+if [ "$auto_mode" = 'true' ]; then
     if [ -n "$old_date_last_updated" ]; then
         new_modified_since="$old_date_last_updated"
     else
@@ -242,7 +245,7 @@ for idx in "${!bugs[@]}"; do
     oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug" > "$bug".json
     etag[$bug]=$(jq -r .http_etag < "$bug".json)
     title[$bug]=$(jq -r .title < "$bug".json | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')
-    if [ "$modified_since" = 'auto' ]; then
+    if [ "$auto_mode" = 'true' ]; then
         last_updated="$(jq -r .date_last_updated < "$bug".json)"
         if [[ "$last_updated" > "$new_date_last_updated" ]]; then
             new_date_last_updated="$last_updated"
@@ -257,24 +260,67 @@ digest="sha256:$(echo "${id[@]}" "${etag[@]}" | sha256sum | awk '{print $1}')"
 
 case "$0" in
     ('/opt/resource/check')
-        if [ "$modified_since" = 'auto' ]; then
-            json='[{"digest":"'"$digest"'","date_last_updated":"'"$new_date_last_updated"'","modified_since":"'"$new_modified_since"'"}]'
+        if [ "$auto_mode" = 'true' ]; then
+            json="$(cat <<ENDLINE
+[
+    {
+        "digest": "$digest",
+        "date_last_updated": "$new_date_last_updated",
+        "modified_since": "$new_modified_since"
+    }
+]
+ENDLINE
+)"
         else
-            json='[{"digest":"'"$digest"'"}]'
+            json="$(cat <<ENDLINE
+[
+    {
+        "digest": "$digest"
+    }
+]
+ENDLINE
+)"
         fi
         ;;
     ('/opt/resource/in')
-        if [ "$modified_since" = 'auto' ]; then
-            json='{"version":{"digest":"'"$digest"'","date_last_updated":"'"$new_date_last_updated"'","modified_since":"'"$old_modified_since"'"},"metadata":['
+        if [ "$auto_mode" = 'true' ]; then
+            json="$(cat <<ENDLINE
+{
+    "version": {
+        "digest": "$digest",
+        "date_last_updated": "$new_date_last_updated",
+        "modified_since": "$new_modified_since"
+    },
+    "metadata": [
+ENDLINE
+)"
         else
-            json='{"version":{"digest":"'"$digest"'"},"metadata":['
+            json="$(cat <<ENDLINE
+{
+    "version": {
+        "digest": "$digest"
+    },
+    "metadata": [
+ENDLINE
+)"
         fi
-        metadata=()
         for bug in "${bugs[@]}"; do
-            metadata+=('{"name":"'"$bug"'","value":"'"${title[$bug]}"'"}')
+            json+="$(cat <<ENDLINE
+        {
+            "name": "$bug",
+            "value": "${title[$bug]}"
+        }
+ENDLINE
+)"
+            if [ "$bug" != "${bugs[-1]}" ]; then
+                json+=","
+            fi
         done
-        IFS=,
-        json+="${metadata[*]}"']}'
+        json+="$(cat <<ENDLINE
+    ]
+}
+ENDLINE
+)"
         ;;
 esac
 
