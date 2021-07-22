@@ -18,6 +18,11 @@ exec 3>&1
 exec 1>&2
 jq -M -S . < /dev/stdin > /tmp/input.json
 
+if [ "$0" = '/opt/resource/out' ]; then
+    jq -n '{}' >&3  # noop
+    exit
+fi
+
 if [ "$(jq -r '.source | has("oauth_consumer_key")' < /tmp/input.json)" = 'true' ]; then
     oauth_consumer_key="$(jq -r .source.oauth_consumer_key < /tmp/input.json)"
 else
@@ -127,10 +132,6 @@ else
 fi
 
 case "$0" in
-    ('/opt/resource/out')
-        jq -n '{"version":{"digest":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}' >&3
-        exit
-        ;;
     ('/opt/resource/in')
         cd "$1"
         mkdir tasks
