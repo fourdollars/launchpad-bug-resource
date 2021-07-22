@@ -5,9 +5,11 @@ IFS=$'\n\t'
 
 clearup ()
 {
-    rm -f "$tmp"
-    rm -f /tmp/input.json
-    rm -fr ~/.config/launchpad
+    if [ "$debug" = "false" ]; then
+        rm -f "$tmp"
+        rm -f /tmp/input.json
+        rm -fr ~/.config/launchpad
+    fi
 }
 
 trap clearup EXIT INT TERM
@@ -17,6 +19,8 @@ tmp=$(mktemp -u /tmp/json-XXXXXX)
 exec 3>&1
 exec 1>&2
 jq -M -S . < /dev/stdin > /tmp/input.json
+
+debug="$(jq -r '.source.debug // "false"' < /tmp/input.json)"
 
 if [ "$0" = '/opt/resource/out' ]; then
     jq -n '{}' >&3  # noop
@@ -51,6 +55,10 @@ cat > ~/.config/launchpad/"$oauth_consumer_key" <<ENDLINE
 export oauth_token="${oauth_token}"
 export oauth_token_secret="${oauth_token_secret}"
 ENDLINE
+
+if [ "$debug" = "verbose" ]; then
+    set -x
+fi
 
 if [ "$(jq -r '.source | has("id")' < /tmp/input.json)" = 'true' ]; then
     case "$(jq -r '.source.id | type' < /tmp/input.json)" in
@@ -192,6 +200,12 @@ done
 if [ -n "$project" ]; then
     echo launchpad-api get "$project" ws.op==searchTasks "${args[@]}"
     oauth_consumer_key="$oauth_consumer_key" launchpad-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
+
+    if [ "$(jq -r 'has("total_size_link")' < "$tmp")" = "true" ]; then
+        echo "Total: $(http get "$(jq -r '.total_size_link' < "$tmp")")"
+    else
+        echo "Total: $(jq -r '.total_size' < "$tmp")"
+    fi
 
     while read -r bug_link; do
         id+=("$(basename "$bug_link")")
