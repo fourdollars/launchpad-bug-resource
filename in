@@ -162,6 +162,8 @@ if [ "$auto_mode" = 'true' ]; then
         args+=("modified_since==$old_date_last_updated")
     elif [ "$0" = /opt/resource/in ] && [ -n "$old_modified_since" ]; then
         args+=("modified_since==$old_modified_since")
+    elif [ -n "$modified_since" ]; then
+        args+=("modified_since==$modified_since")
     fi
 elif [ -n "$modified_since" ]; then
     args+=("modified_since==$modified_since")
