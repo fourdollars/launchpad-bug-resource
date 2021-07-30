@@ -48,6 +48,7 @@ resource_types:
 * created_before: optional, it is disabled by default. When it is enabled, it will search for bugs that were created before the given date
 * created_since: optional, it is disabled by default. When it is enabled, it will search for bugs that were created since the given date
 * auto_mode: optional, it is disabled by default. When it is enabled, it will use the date_last_updated of bugs last time as the next modified_since.
+* parallel: optional, it is disabled by default. When it is enabled, it will use [GNU Parallel](https://www.gnu.org/software/parallel/).
 
 ```yaml
 resources:

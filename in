@@ -121,6 +121,7 @@ else
 fi
 
 auto_mode="$(jq -r '.source.auto_mode // "false"' < /tmp/input.json)"
+parallel="$(jq -r '.source.parallel // "false"' < /tmp/input.json)"
 modified_since="$(jq -r '.source.modified_since // ""' < /tmp/input.json)"
 created_since="$(jq -r '.source.created_since // ""' < /tmp/input.json)"
 created_before="$(jq -r '.source.created_before // ""' < /tmp/input.json)"
@@ -255,11 +256,24 @@ if [ "$auto_mode" = 'true' ]; then
     fi
 fi
 
+if [ "$parallel" = "true" ]; then
+    parallel "echo \"Fetching bugs/{}\"; oauth_consumer_key=\"$oauth_consumer_key\" launchpad-api get bugs/{} > {}.json" ::: "${bugs[@]}"
+    if [ -d tasks ]; then
+        parallel "echo \"Fetching tasks/{}\"; oauth_consumer_key=\"$oauth_consumer_key\" launchpad-api get bugs/{}/bug_tasks > tasks/{}.json" ::: "${bugs[@]}"
+    fi
+else
+    for idx in "${!bugs[@]}"; do
+        echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
+        bug="${bugs[$idx]}"
+        oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug" > "$bug".json
+        if [ -d tasks ]; then
+            oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
+        fi
+    done
+fi
+
 new_date_last_updated=''
-for idx in "${!bugs[@]}"; do
-    echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
-    bug="${bugs[$idx]}"
-    oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug" > "$bug".json
+for bug in "${bugs[@]}"; do
     etag[$bug]=$(jq -r .http_etag < "$bug".json)
     title[$bug]=$(jq -r .title < "$bug".json | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')
     if [ "$auto_mode" = 'true' ]; then
@@ -267,9 +281,6 @@ for idx in "${!bugs[@]}"; do
         if [[ "$last_updated" > "$new_date_last_updated" ]]; then
             new_date_last_updated="$last_updated"
         fi
-    fi
-    if [ -d tasks ]; then
-        oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
     fi
 done
 

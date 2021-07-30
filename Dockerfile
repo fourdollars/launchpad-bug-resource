@@ -1,7 +1,7 @@
 FROM alpine:latest
 RUN apk update
 RUN apk upgrade
-RUN apk add bash jq httpie py3-setuptools
+RUN apk add bash jq httpie py3-setuptools parallel
 ADD /launchpad-api /usr/bin/launchpad-api
 RUN chmod +x /usr/bin/launchpad-api
 ADD /check /opt/resource/check
