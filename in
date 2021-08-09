@@ -118,13 +118,6 @@ else
     digest=''
 fi
 
-case "$0" in
-    ('/opt/resource/in')
-        cd "$1"
-        mkdir tasks
-        ;;
-esac
-
 declare -A etag=()
 declare -A title=()
 declare -a args=()
@@ -239,13 +232,21 @@ if [ "$auto_mode" = 'true' ]; then
     fi
 fi
 
+if [ "$0" = '/opt/resource/in' ]; then
+    cd "$1"
+fi
+
 if [ "$parallel" = "true" ]; then
     parallel "launchpad-api get bugs/{} > {}.json; echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\"" ::: "${bugs[@]}"
-    echo ""
-    if [ -d tasks ]; then
+    if [ "$0" = '/opt/resource/in' ]; then
+        mkdir tasks
+        echo ""
         parallel "launchpad-api get bugs/{}/bug_tasks > tasks/{}.json; echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\"" ::: "${bugs[@]}"
     fi
 else
+    if [ "$0" = '/opt/resource/in' ]; then
+        mkdir tasks
+    fi
     for idx in "${!bugs[@]}"; do
         echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
         bug="${bugs[$idx]}"
