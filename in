@@ -258,7 +258,9 @@ else
 fi
 
 new_date_last_updated=''
-for bug in "${bugs[@]}"; do
+echo ""
+for idx in "${!bugs[@]}"; do
+    bug="${bugs[$idx]}"
     etag[$bug]=$(jq -r .http_etag < "$bug".json)
     title[$bug]=$(jq -r .title < "$bug".json | sed -e 's/\\/\\\\/g' -e 's/\"/\\\"/g')
     if [ "$auto_mode" = 'true' ]; then
@@ -267,6 +269,7 @@ for bug in "${bugs[@]}"; do
             new_date_last_updated="$last_updated"
         fi
     fi
+    echo -en "\rProcessed $((idx + 1))/${#bugs[@]} IDs"
 done
 
 digest="sha256:$(echo "${id[@]}" "${etag[@]}" | sha256sum | awk '{print $1}')"
