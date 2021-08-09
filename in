@@ -240,9 +240,10 @@ if [ "$auto_mode" = 'true' ]; then
 fi
 
 if [ "$parallel" = "true" ]; then
-    parallel "echo \"Fetching bugs/{}\"; launchpad-api get bugs/{} > {}.json" ::: "${bugs[@]}"
+    parallel "launchpad-api get bugs/{} > {}.json; echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\"" ::: "${bugs[@]}"
+    echo ""
     if [ -d tasks ]; then
-        parallel "echo \"Fetching tasks/{}\"; launchpad-api get bugs/{}/bug_tasks > tasks/{}.json" ::: "${bugs[@]}"
+        parallel "launchpad-api get bugs/{}/bug_tasks > tasks/{}.json; echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\"" ::: "${bugs[@]}"
     fi
 else
     for idx in "${!bugs[@]}"; do
