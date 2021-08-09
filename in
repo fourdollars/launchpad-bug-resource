@@ -188,8 +188,11 @@ fi
 
 for name in "${status[@]}"; do
     case "$name" in
-        ("New"|"Incomplete"|"Opinion"|"Invalid"|"Won't Fix"|"Expired"|"Confirmed"|"Triaged"|"In Progress"|"Fix Committed"|"Fix Released"|"Unknown")
+        ("New"|"Incomplete"|"Opinion"|"Invalid"|"Won't Fix"|"Expired"|"Confirmed"|"Triaged"|"In Progress"|"Fix Committed"|"Fix Released")
             args+=("status==$name")
+            ;;
+        ('*')
+            args+=("New" "Incomplete" "Opinion" "Invalid" "Won't Fix" "Expired" "Confirmed" "Triaged" "In Progress" "Fix Committed" "Fix Released")
             ;;
         (*)
             echo "$name is not a valid status."
