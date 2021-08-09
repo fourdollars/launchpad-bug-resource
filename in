@@ -170,7 +170,9 @@ for name in "${status[@]}"; do
             args+=("status==$name")
             ;;
         ('*')
-            args+=("New" "Incomplete" "Opinion" "Invalid" "Won't Fix" "Expired" "Confirmed" "Triaged" "In Progress" "Fix Committed" "Fix Released")
+            for arg in "New" "Incomplete" "Opinion" "Invalid" "Won't Fix" "Expired" "Confirmed" "Triaged" "In Progress" "Fix Committed" "Fix Released"; do
+                args+=("status==$arg")
+            done
             ;;
         (*)
             echo "$name is not a valid status."
