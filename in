@@ -8,7 +8,6 @@ clearup ()
     if [ "$debug" = "false" ]; then
         rm -f "$tmp"
         rm -f /tmp/input.json
-        rm -fr ~/.config/launchpad
     fi
 }
 
@@ -20,41 +19,20 @@ exec 3>&1
 exec 1>&2
 jq -M -S . < /dev/stdin > /tmp/input.json
 
-debug="$(jq -r '.source.debug // "false"' < /tmp/input.json)"
+debug=$(jq -r '.source.debug // "false"' < /tmp/input.json)
 
 if [ "$0" = '/opt/resource/out' ]; then
     jq -n '{}' >&3  # noop
     exit
 fi
 
-if [ "$(jq -r '.source | has("oauth_consumer_key")' < /tmp/input.json)" = 'true' ]; then
-    oauth_consumer_key="$(jq -r .source.oauth_consumer_key < /tmp/input.json)"
-else
-    echo 'You need to provide the oauth_consumer_key.'
-    exit 1
+oauth_consumer_key=$(jq -r '.source.oauth_consumer_key // ""' < /tmp/input.json)
+
+if [ -n "$oauth_consumer_key" ]; then
+    oauth_token=$(jq -r '.source.oauth_token // ""' < /tmp/input.json)
+    oauth_token_secret=$(jq -r '.source.oauth_token_secret // ""' < /tmp/input.json)
+    export LAUNCHPAD_TOKEN="$oauth_token:$oauth_token_secret:$oauth_consumer_key"
 fi
-
-if [ "$(jq -r '.source | has("oauth_token")' < /tmp/input.json)" = 'true' ]; then
-    oauth_token="$(jq -r .source.oauth_token < /tmp/input.json)"
-else
-    echo 'You need to provide the oauth_token.'
-    exit 1
-fi
-
-if [ "$(jq -r '.source | has("oauth_token_secret")' < /tmp/input.json)" = 'true' ]; then
-    oauth_token_secret="$(jq -r .source.oauth_token_secret < /tmp/input.json)"
-else
-    echo 'You need to provide the oauth_token_secret.'
-    exit 1
-fi
-
-mkdir -p ~/.config/launchpad
-cat > ~/.config/launchpad/"$oauth_consumer_key" <<ENDLINE
-#!/bin/bash
-
-export oauth_token="${oauth_token}"
-export oauth_token_secret="${oauth_token_secret}"
-ENDLINE
 
 if [ "$debug" = "verbose" ]; then
     set -x
@@ -203,7 +181,7 @@ done
 
 if [ -n "$project" ]; then
     echo launchpad-api get "$project" ws.op==searchTasks "${args[@]}"
-    oauth_consumer_key="$oauth_consumer_key" launchpad-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
+    launchpad-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
 
     if [ "$(jq -r 'has("total_size_link")' < "$tmp")" = "true" ]; then
         echo "Total: $(http get "$(jq -r '.total_size_link' < "$tmp")")"
@@ -260,17 +238,17 @@ if [ "$auto_mode" = 'true' ]; then
 fi
 
 if [ "$parallel" = "true" ]; then
-    parallel "echo \"Fetching bugs/{}\"; oauth_consumer_key=\"$oauth_consumer_key\" launchpad-api get bugs/{} > {}.json" ::: "${bugs[@]}"
+    parallel "echo \"Fetching bugs/{}\"; launchpad-api get bugs/{} > {}.json" ::: "${bugs[@]}"
     if [ -d tasks ]; then
-        parallel "echo \"Fetching tasks/{}\"; oauth_consumer_key=\"$oauth_consumer_key\" launchpad-api get bugs/{}/bug_tasks > tasks/{}.json" ::: "${bugs[@]}"
+        parallel "echo \"Fetching tasks/{}\"; launchpad-api get bugs/{}/bug_tasks > tasks/{}.json" ::: "${bugs[@]}"
     fi
 else
     for idx in "${!bugs[@]}"; do
         echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
         bug="${bugs[$idx]}"
-        oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug" > "$bug".json
+        launchpad-api get bugs/"$bug" > "$bug".json
         if [ -d tasks ]; then
-            oauth_consumer_key="$oauth_consumer_key" launchpad-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
+            launchpad-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
         fi
     done
 fi
