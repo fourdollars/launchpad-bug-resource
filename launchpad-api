@@ -102,8 +102,10 @@ post_api()
         "$@"
 }
 
-if [ -z "$oauth_consumer_key" ] || [ "$oauth_consumer_key" = "none" ]; then
-    LAUNCHPAD_TOKEN="::"
+if [ -z "$LAUNCHPAD_TOKEN" ]; then
+    if [ -z "$oauth_consumer_key" ] || [ "$oauth_consumer_key" = "none" ]; then
+        LAUNCHPAD_TOKEN="::"
+    fi
 fi
 
 if [ -n "$LAUNCHPAD_TOKEN" ]; then
