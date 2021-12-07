@@ -55,6 +55,8 @@ else
     id=()
 fi
 
+failed_when_total_zero=$(jq -r '.source.failed_when_total_zero // "false"' < /tmp/input.json)
+
 if [ "$(jq -r '.source | has("status")' < /tmp/input.json)" = 'true' ]; then
     case "$(jq -r '.source.status | type' < /tmp/input.json)" in
         ('string')
@@ -179,9 +181,14 @@ if [ -n "$project" ]; then
     launchpad-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
 
     if [ "$(jq -r 'has("total_size_link")' < "$tmp")" = "true" ]; then
-        echo "Total: $(http get "$(jq -r '.total_size_link' < "$tmp")")"
+        total=$(http get "$(jq -r '.total_size_link' < "$tmp")")
     else
-        echo "Total: $(jq -r '.total_size' < "$tmp")"
+        total=$(jq -r '.total_size' < "$tmp")
+    fi
+
+    echo "Total: $total"
+    if [ "$failed_when_total_zero" = "true" ] && [ "$total" = "0" ]; then
+        exit 1
     fi
 
     while read -r bug_link; do
