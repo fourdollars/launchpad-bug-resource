@@ -2,12 +2,12 @@
 
 set -euo pipefail
 IFS=$'\n\t'
+debug="false"
 
 clearup ()
 {
     if [ "$debug" = "false" ]; then
         rm -f "$tmp"
-        rm -f /tmp/input.json
     fi
 }
 
@@ -17,20 +17,21 @@ tmp=$(mktemp -u /tmp/json-XXXXXX)
 
 exec 3>&1
 exec 1>&2
-jq -M -S . < /dev/stdin > /tmp/input.json
 
-debug=$(jq -r '.source.debug // "false"' < /tmp/input.json)
+payload="$(cat <&0)"
+
+debug=$(jq -r '.source.debug // "false"' <<< "$payload")
 
 if [ "$0" = '/opt/resource/out' ]; then
     jq -n '{}' >&3  # noop
     exit
 fi
 
-oauth_consumer_key=$(jq -r '.source.oauth_consumer_key // ""' < /tmp/input.json)
+oauth_consumer_key=$(jq -r '.source.oauth_consumer_key // ""' <<< "$payload")
 
 if [ -n "$oauth_consumer_key" ]; then
-    oauth_token=$(jq -r '.source.oauth_token // ""' < /tmp/input.json)
-    oauth_token_secret=$(jq -r '.source.oauth_token_secret // ""' < /tmp/input.json)
+    oauth_token=$(jq -r '.source.oauth_token // ""' <<< "$payload")
+    oauth_token_secret=$(jq -r '.source.oauth_token_secret // ""' <<< "$payload")
     export LAUNCHPAD_TOKEN="$oauth_token:$oauth_token_secret:$oauth_consumer_key"
 fi
 
@@ -38,13 +39,13 @@ if [ "$debug" = "verbose" ]; then
     set -x
 fi
 
-if [ "$(jq -r '.source | has("id")' < /tmp/input.json)" = 'true' ]; then
-    case "$(jq -r '.source.id | type' < /tmp/input.json)" in
+if [ "$(jq -r '.source | has("id")' <<< "$payload")" = 'true' ]; then
+    case "$(jq -r '.source.id | type' <<< "$payload")" in
         ('number')
-            id=("$(jq -r .source.id < /tmp/input.json)")
+            id=("$(jq -r .source.id <<< "$payload")")
             ;;
         ('array')
-            mapfile -t id < <(jq -r '.source.id | .[]' < /tmp/input.json)
+            mapfile -t id < <(jq -r '.source.id | .[]' <<< "$payload")
             ;;
         (*)
             echo "Invalid input for .source.id"
@@ -55,15 +56,15 @@ else
     id=()
 fi
 
-failed_when_total_zero=$(jq -r '.source.failed_when_total_zero // "false"' < /tmp/input.json)
+failed_when_total_zero=$(jq -r '.source.failed_when_total_zero // "false"' <<< "$payload")
 
-if [ "$(jq -r '.source | has("status")' < /tmp/input.json)" = 'true' ]; then
-    case "$(jq -r '.source.status | type' < /tmp/input.json)" in
+if [ "$(jq -r '.source | has("status")' <<< "$payload")" = 'true' ]; then
+    case "$(jq -r '.source.status | type' <<< "$payload")" in
         ('string')
-            status=("$(jq -r .source.status < /tmp/input.json)")
+            status=("$(jq -r .source.status <<< "$payload")")
             ;;
         ('array')
-            mapfile -t status < <(jq -r '.source.status | .[]' < /tmp/input.json)
+            mapfile -t status < <(jq -r '.source.status | .[]' <<< "$payload")
             ;;
         (*)
             echo "Invalid input for .source.status"
@@ -74,25 +75,25 @@ else
     status=()
 fi
 
-if [ "$(jq -r '.source | has("project")' < /tmp/input.json)" = 'true' ]; then
-    project="$(jq -r .source.project < /tmp/input.json)"
+if [ "$(jq -r '.source | has("project")' <<< "$payload")" = 'true' ]; then
+    project="$(jq -r .source.project <<< "$payload")"
 else
     project=''
 fi
 
-if [ "$(jq -r '.source | has("tag")' < /tmp/input.json)" = 'true' ]; then
-    case "$(jq -r '.source.tag | type' < /tmp/input.json)" in
+if [ "$(jq -r '.source | has("tag")' <<< "$payload")" = 'true' ]; then
+    case "$(jq -r '.source.tag | type' <<< "$payload")" in
         ('number')
-            tag=("$(jq -r '.source.tag' < /tmp/input.json)")
+            tag=("$(jq -r '.source.tag' <<< "$payload")")
             ;;
         ('string')
-            tag=("$(jq -r '.source.tag' < /tmp/input.json)")
+            tag=("$(jq -r '.source.tag' <<< "$payload")")
             ;;
         ('array')
-            mapfile -t tag < <(jq -r '.source.tag|.[]' < /tmp/input.json | sort)
+            mapfile -t tag < <(jq -r '.source.tag|.[]' <<< "$payload" | sort)
             ;;
         (*)
-            echo "Type '$(jq -r '.source.tag | type' < /tmp/input.json)' input is invalid for .source.tag"
+            echo "Type '$(jq -r '.source.tag | type' <<< "$payload")' input is invalid for .source.tag"
             exit 1
             ;;
     esac
@@ -100,13 +101,13 @@ else
     tag=()
 fi
 
-auto_mode="$(jq -r '.source.auto_mode // "false"' < /tmp/input.json)"
-parallel="$(jq -r '.source.parallel // "false"' < /tmp/input.json)"
-modified_since="$(jq -r '.source.modified_since // ""' < /tmp/input.json)"
-created_since="$(jq -r '.source.created_since // ""' < /tmp/input.json)"
-created_before="$(jq -r '.source.created_before // ""' < /tmp/input.json)"
-old_date_last_updated="$(jq -r '.version.date_last_updated // ""' < /tmp/input.json)"
-old_modified_since="$(jq -r '.version.modified_since // ""' < /tmp/input.json)"
+auto_mode="$(jq -r '.source.auto_mode // "false"' <<< "$payload")"
+parallel="$(jq -r '.source.parallel // "false"' <<< "$payload")"
+modified_since="$(jq -r '.source.modified_since // ""' <<< "$payload")"
+created_since="$(jq -r '.source.created_since // ""' <<< "$payload")"
+created_before="$(jq -r '.source.created_before // ""' <<< "$payload")"
+old_date_last_updated="$(jq -r '.version.date_last_updated // ""' <<< "$payload")"
+old_modified_since="$(jq -r '.version.modified_since // ""' <<< "$payload")"
 
 # Backward Compatibility
 if [ -n "$modified_since" ] && [ "$modified_since" = "auto" ]; then
@@ -114,8 +115,8 @@ if [ -n "$modified_since" ] && [ "$modified_since" = "auto" ]; then
     modified_since=""
 fi
 
-if [ "$(jq -r '.version | has("digest")' < /tmp/input.json)" = 'true' ]; then
-    digest="$(jq -r '.version.digest' < /tmp/input.json)"
+if [ "$(jq -r '.version | has("digest")' <<< "$payload")" = 'true' ]; then
+    digest="$(jq -r '.version.digest' <<< "$payload")"
 else
     digest=''
 fi
@@ -129,7 +130,7 @@ for name in "${tag[@]}"; do
 done
 
 if [ -n "${tag[*]}" ]; then
-    case "$(jq -r '.source.combinator // "any"' < /tmp/input.json)" in
+    case "$(jq -r '.source.combinator // "any"' <<< "$payload")" in
         (all)
             args+=('tags_combinator==All')
             ;;
