@@ -27,9 +27,8 @@ if [ "$0" = '/opt/resource/out' ]; then
     exit
 fi
 
-oauth_consumer_key=$(jq -r '.source.oauth_consumer_key // ""' <<< "$payload")
-
-if [ -n "$oauth_consumer_key" ]; then
+if [ "$(jq -r '.source | has("oauth_consumer_key")' <<< "$payload")" = 'true' ]; then
+    oauth_consumer_key=$(jq -r '.source.oauth_consumer_key // ""' <<< "$payload")
     oauth_token=$(jq -r '.source.oauth_token // ""' <<< "$payload")
     oauth_token_secret=$(jq -r '.source.oauth_token_secret // ""' <<< "$payload")
     export LAUNCHPAD_TOKEN="$oauth_token:$oauth_token_secret:$oauth_consumer_key"
@@ -182,7 +181,7 @@ if [ -n "$project" ]; then
     lp-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
 
     if [ "$(jq -r 'has("total_size_link")' < "$tmp")" = "true" ]; then
-        total=$(http get "$(jq -r '.total_size_link' < "$tmp")")
+        total=$(wget -q "$(jq -r '.total_size_link' < "$tmp")" -O -)
     else
         total=$(jq -r '.total_size' < "$tmp")
     fi
@@ -199,7 +198,7 @@ if [ -n "$project" ]; then
 
     next=$(jq -r .next_collection_link < "$tmp")
     while [ "$next" != 'null' ]; do
-        http --ignore-stdin --check-status --follow "$next" > "$tmp"
+        wget -q "$next" -O "$tmp"
         while read -r bug_link; do
             id+=("$(basename "$bug_link")")
         done < <(jq -r '.entries | .[] | .bug_link' < "$tmp")
