@@ -37,8 +37,8 @@ resource_types:
 ### Resource
 
 * oauth_consumer_key: **required**, choose what you like.
-* oauth_token: **required**, run `oauth_consumer_key=what_you_like ./launchpad-api` to get it in ~/.config/launchpad/what_you_like.
-* oauth_token_secret: **required**, run `oauth_consumer_key=what_you_like ./launchpad-api` to get it in ~/.config/launchpad/what_you_like.
+* oauth_token: **required**, run `oauth_consumer_key=what_you_like ./lp-api` to get it in ~/.config/launchpad/what_you_like.
+* oauth_token_secret: **required**, run `oauth_consumer_key=what_you_like ./lp-api` to get it in ~/.config/launchpad/what_you_like.
 * id: optional, the bug id or bug id list.
 * project: optional, Specify the project name to search bugs.
  * tag: optional, the tag or tag list. Specify the tag when it searches for the project.

@@ -111,7 +111,7 @@ fi
 if [ -n "$LAUNCHPAD_TOKEN" ]; then
     read -r oauth_token oauth_token_secret oauth_consumer_key < <(echo "$LAUNCHPAD_TOKEN" | tr ':' ' ')
     if [ -z "$oauth_consumer_key" ]; then
-        oauth_consumer_key="System-wide: $(grep ^PRETTY_NAME /etc/os-release | cut -d '=' -f 2) (launchpad-api $(hostname))"
+        oauth_consumer_key="System-wide: $(grep ^PRETTY_NAME /etc/os-release | cut -d '=' -f 2) (lp-api $(hostname))"
     else
         oauth_consumer_key="${oauth_consumer_key/System-wide /System-wide:}"
     fi

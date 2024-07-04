@@ -178,8 +178,8 @@ for name in "${status[@]}"; do
 done
 
 if [ -n "$project" ]; then
-    echo launchpad-api get "$project" ws.op==searchTasks "${args[@]}"
-    launchpad-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
+    echo lp-api get "$project" ws.op==searchTasks "${args[@]}"
+    lp-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
 
     if [ "$(jq -r 'has("total_size_link")' < "$tmp")" = "true" ]; then
         total=$(http get "$(jq -r '.total_size_link' < "$tmp")")
@@ -245,11 +245,11 @@ if [ "$0" = '/opt/resource/in' ]; then
 fi
 
 if [ "$parallel" = "true" ]; then
-    parallel "(launchpad-api get bugs/{} > {}.json && echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\") || (echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\" && false)" ::: "${bugs[@]}"
+    parallel "(lp-api get bugs/{} > {}.json && echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\") || (echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\" && false)" ::: "${bugs[@]}"
     if [ "$0" = '/opt/resource/in' ]; then
         mkdir tasks
         echo ""
-        parallel "(launchpad-api get bugs/{}/bug_tasks > tasks/{}.json && echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\") || (echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\" && false)" ::: "${bugs[@]}"
+        parallel "(lp-api get bugs/{}/bug_tasks > tasks/{}.json && echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\") || (echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\" && false)" ::: "${bugs[@]}"
     fi
 else
     if [ "$0" = '/opt/resource/in' ]; then
@@ -258,9 +258,9 @@ else
     for idx in "${!bugs[@]}"; do
         echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
         bug="${bugs[$idx]}"
-        launchpad-api get bugs/"$bug" > "$bug".json
+        lp-api get bugs/"$bug" > "$bug".json
         if [ -d tasks ]; then
-            launchpad-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
+            lp-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
         fi
     done
 fi
