@@ -39,6 +39,8 @@ if [ "$debug" = "verbose" ]; then
     set -x
 fi
 
+timeout=$(jq -r '.source.timeout // "10s"' <<< "$payload")
+
 if [ "$(jq -r '.source | has("id")' <<< "$payload")" = 'true' ]; then
     case "$(jq -r '.source.id | type' <<< "$payload")" in
         ('number')
@@ -179,10 +181,10 @@ done
 
 if [ -n "$project" ]; then
     echo lp-api get "$project" ws.op==searchTasks "${args[@]}"
-    lp-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
+    lp-api -timeout "$timeout" get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
 
     if [ "$(jq -r 'has("total_size_link")' < "$tmp")" = "true" ]; then
-        total=$(lp-api .total_size_link < "$tmp")
+        total=$(lp-api -timeout "$timeout" .total_size_link < "$tmp")
     else
         total=$(jq -r '.total_size' < "$tmp")
     fi
@@ -198,7 +200,7 @@ if [ -n "$project" ]; then
     echo -en "\rCollected ${#id[@]} IDs"
 
     while [ "$(jq -r 'has("next_collection_link")' < "$tmp")" = "true" ]; do
-        lp-api .next_collection_link < "$tmp" > "$tmp2"
+        lp-api -timeout "$timeout" .next_collection_link < "$tmp" > "$tmp2"
         mv "$tmp2" "$tmp"
         while read -r bug_link; do
             id+=("$(basename "$bug_link")")
@@ -244,11 +246,11 @@ if [ "$0" = '/opt/resource/in' ]; then
 fi
 
 if [ "$parallel" = "true" ]; then
-    parallel --retries 3 "(lp-api get bugs/{} > {}.json && echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\") || (echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\" && false)" ::: "${bugs[@]}"
+    parallel --retries 3 "(lp-api -timeout \"$timeout\" get bugs/{} > {}.json && echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\") || (echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\" && false)" ::: "${bugs[@]}"
     if [ "$0" = '/opt/resource/in' ]; then
         mkdir tasks
         echo ""
-        parallel --retries 3 "(lp-api get bugs/{}/bug_tasks > tasks/{}.json && echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\") || (echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\" && false)" ::: "${bugs[@]}"
+        parallel --retries 3 "(lp-api -timeout \"$timeout\" get bugs/{}/bug_tasks > tasks/{}.json && echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\") || (echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\" && false)" ::: "${bugs[@]}"
     fi
 else
     if [ "$0" = '/opt/resource/in' ]; then
@@ -257,9 +259,9 @@ else
     for idx in "${!bugs[@]}"; do
         echo -en "\rFetching $((idx + 1))/${#bugs[@]} IDs"
         bug="${bugs[$idx]}"
-        lp-api get bugs/"$bug" > "$bug".json
+        lp-api -timeout "$timeout" get bugs/"$bug" > "$bug".json
         if [ -d tasks ]; then
-            lp-api get bugs/"$bug"/bug_tasks > tasks/"$bug".json
+            lp-api -timeout "$timeout" get bugs/"$bug"/bug_tasks > tasks/"$bug".json
         fi
     done
 fi

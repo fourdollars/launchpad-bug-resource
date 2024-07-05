@@ -17,6 +17,7 @@ resource_types:
     oauth_consumer_key: test
     oauth_token: csjrGznX4Jq59CB8941N
     oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
+    timeout: 10s
 ```
 
 or
@@ -32,13 +33,15 @@ resource_types:
     oauth_consumer_key: test
     oauth_token: csjrGznX4Jq59CB8941N
     oauth_token_secret: wxDNqsCLxzrmhb2K27FRGjc7hdp3zQk0b4N8cnfRzVHnJfCFlHgkGHxDk5qMPTSdQFSsllS4dwGBD18Q
+    timeout: 10s
 ```
 
 ### Resource
 
 * oauth_consumer_key: **required**, choose what you like.
-* oauth_token: **required**, run `oauth_consumer_key=what_you_like ./lp-api` to get it in ~/.config/launchpad/what_you_like.
-* oauth_token_secret: **required**, run `oauth_consumer_key=what_you_like ./lp-api` to get it in ~/.config/launchpad/what_you_like.
+* oauth_token: **required**, run `oauth_consumer_key=what_you_like lp-api` to get it in ~/.config/lp-api.toml. https://github.com/fourdollars/lp-api
+* oauth_token_secret: **required**, run `oauth_consumer_key=what_you_like lp-api` to get it in ~/.config/lp-api.toml. https://github.com/fourdollars/lp-api
+* timeout: optional, the timeout duration for lp-api. It is 10s by default.
 * id: optional, the bug id or bug id list.
 * project: optional, Specify the project name to search bugs.
  * tag: optional, the tag or tag list. Specify the tag when it searches for the project.
