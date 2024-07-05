@@ -14,6 +14,7 @@ clearup ()
 trap clearup EXIT INT TERM
 
 tmp=$(mktemp -u /tmp/json-XXXXXX)
+tmp2=$(mktemp -u /tmp/json-XXXXXX)
 
 exec 3>&1
 exec 1>&2
@@ -181,7 +182,7 @@ if [ -n "$project" ]; then
     lp-api get "$project" ws.op==searchTasks "${args[@]}" > "$tmp"
 
     if [ "$(jq -r 'has("total_size_link")' < "$tmp")" = "true" ]; then
-        total=$(wget -q "$(jq -r '.total_size_link' < "$tmp")" -O -)
+        total=$(lp-api .total_size_link < "$tmp")
     else
         total=$(jq -r '.total_size' < "$tmp")
     fi
@@ -196,14 +197,13 @@ if [ -n "$project" ]; then
     done < <(jq -r '.entries | .[] | .bug_link' < "$tmp")
     echo -en "\rCollected ${#id[@]} IDs"
 
-    next=$(jq -r .next_collection_link < "$tmp")
-    while [ "$next" != 'null' ]; do
-        wget -q "$next" -O "$tmp"
+    while [ "$(jq -r 'has("next_collection_link")' < "$tmp")" = "true" ]; do
+        lp-api .next_collection_link < "$tmp" > "$tmp2"
+        mv "$tmp2" "$tmp"
         while read -r bug_link; do
             id+=("$(basename "$bug_link")")
         done < <(jq -r '.entries | .[] | .bug_link' < "$tmp")
         echo -en "\rCollected ${#id[@]} IDs"
-        next=$(jq -r .next_collection_link < "$tmp")
     done
     echo ""
 fi

@@ -31,6 +31,6 @@ ADD /in /opt/resource/in
 RUN <<EOF
 chmod +x /opt/resource/* /bin/lp-api
 apt-get -q -q update
-apt-get install --yes --no-install-recommends ca-certificates jq parallel wget
+apt-get install --yes --no-install-recommends ca-certificates jq parallel
 rm -fr /var/lib/apt /var/lib/dpkg
 EOF
