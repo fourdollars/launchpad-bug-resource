@@ -244,11 +244,11 @@ if [ "$0" = '/opt/resource/in' ]; then
 fi
 
 if [ "$parallel" = "true" ]; then
-    parallel "(lp-api get bugs/{} > {}.json && echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\") || (echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\" && false)" ::: "${bugs[@]}"
+    parallel --retries 3 "(lp-api get bugs/{} > {}.json && echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\") || (echo -en \"\\rFetched \$(ls | wc -l)/${#bugs[@]} bugs\" && false)" ::: "${bugs[@]}"
     if [ "$0" = '/opt/resource/in' ]; then
         mkdir tasks
         echo ""
-        parallel "(lp-api get bugs/{}/bug_tasks > tasks/{}.json && echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\") || (echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\" && false)" ::: "${bugs[@]}"
+        parallel --retries 3 "(lp-api get bugs/{}/bug_tasks > tasks/{}.json && echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\") || (echo -en \"\\rFetched \$(ls tasks | wc -l)/${#bugs[@]} tasks\" && false)" ::: "${bugs[@]}"
     fi
 else
     if [ "$0" = '/opt/resource/in' ]; then
